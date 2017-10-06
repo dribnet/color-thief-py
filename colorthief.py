@@ -13,7 +13,47 @@ __version__ = '0.2.1'
 import math
 
 from PIL import Image
+import argparse
+import sys
+import math
+from PIL import Image
+import numpy as np
 
+def save_grid_image(filename, palette, cols=None, rows=None, size=100, spacing=0):
+    """Convert a palette into an image grid"""
+    N = len(palette)
+
+    if rows == None:
+        sq_num = math.sqrt(N)
+        sq_dim = int(sq_num)
+        if sq_num != sq_dim:
+            sq_dim = sq_dim + 1
+        rows = sq_dim
+        cols = sq_dim
+
+    width = size
+    height = size
+
+    total_height = rows * height
+    total_width  = cols * width
+
+    total_height = total_height + spacing * (rows - 1)
+    total_width  = total_width + spacing * (cols - 1)
+
+    im_array = np.zeros([total_height, total_width, 3]).astype(np.uint8)
+    im_array.fill(255)
+
+    for i in range(rows*cols):
+        if i < N:
+            r = i // cols
+            c = i % cols
+
+            offset_y, offset_x = r*height+spacing*r, c*width+spacing*c
+            target = np.full([height, width, 3], palette[i]).astype(np.uint8)
+            im_array[offset_y:(offset_y+height), offset_x:(offset_x+width), :] = target
+
+    final_image = Image.fromarray(im_array)
+    final_image.save(filename)
 
 class cached_property(object):
     """Decorator that creates converts a method with a single
@@ -420,3 +460,26 @@ class PQueue(object):
 
     def map(self, f):
         return list(map(f, self.contents))
+
+def main():
+    parser = argparse.ArgumentParser(description="ColorThief command line")
+    parser.add_argument('--input', default=None,
+                        help="input file")
+    parser.add_argument('--output', default="out.png",
+                         help='output file')
+    parser.add_argument('--size', default=100, type=int,
+                        help='dimension of grid cell in pixels')
+    parser.add_argument('--num_colors', default=4, type=int,
+                        help='quality of palate')
+    parser.add_argument('--pallete_size', default=4, type=int,
+                        help='quality of palate')
+    parser.add_argument('--quality', default=1, type=int,
+                        help='quality of palate')
+    args = parser.parse_args()
+    color_thief = ColorThief(args.input)
+    palette_tight1 = color_thief.get_palette(color_count=args.pallete_size, quality=args.quality)[:args.num_colors]
+    save_grid_image(args.output, palette_tight1)
+    print("Saved {} colors into file {}".format(args.num_colors, args.output))
+
+if __name__ == '__main__':
+    main()
